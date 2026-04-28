@@ -167,6 +167,28 @@ def create_reel(caption: str, accroche: str, hashtags: str, keyword: str) -> tup
     if result.returncode != 0:
         raise RuntimeError(f"FFmpeg error: {result.stderr[-500:]}")
 
+    # Avatar Aiello en bas à gauche
+    try:
+        from avatar import get_avatar_round
+        avatar_path = get_avatar_round()
+        if avatar_path and os.path.exists(avatar_path):
+            avatar_out = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False).name
+            av_cmd = [
+                FFMPEG_EXE, "-y",
+                "-i", output, "-i", avatar_path,
+                "-filter_complex",
+                "[1:v]scale=180:-1[av];"
+                "[0:v][av]overlay=30:H-h-30[v]",
+                "-map", "[v]", "-c:v", "libx264", "-pix_fmt", "yuv420p", avatar_out,
+            ]
+            av_r = subprocess.run(av_cmd, capture_output=True, text=True)
+            if av_r.returncode == 0:
+                os.unlink(output)
+                output = avatar_out
+    except Exception:
+        pass
+
+
     if delete_bg and bg_path and os.path.exists(bg_path):
         os.unlink(bg_path)
 
