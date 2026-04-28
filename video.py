@@ -141,7 +141,7 @@ def create_reel(caption: str, accroche: str, hashtags: str, keyword: str) -> tup
         # Photo locale → image fixe pendant 15s
         filters = (
             f"[0:v]scale=1080:1920:force_original_aspect_ratio=increase,"
-            f"crop=1080:1920,colorchannelmixer=aa=0.75,{text_filters}[v]"
+            f"crop=1080:1920,eq=brightness=-0.2:contrast=1.1,{text_filters}[v]"
         )
         cmd = [
             FFMPEG_EXE, "-y", "-loop", "1", "-i", bg_path,
@@ -154,7 +154,7 @@ def create_reel(caption: str, accroche: str, hashtags: str, keyword: str) -> tup
         filters = (
             f"[0:v]scale=1080:1920:force_original_aspect_ratio=increase,"
             f"crop=1080:1920,trim=duration=15,setpts=PTS-STARTPTS,"
-            f"colorchannelmixer=aa=0.7,{text_filters}[v]"
+            f"eq=brightness=-0.25:contrast=1.1,{text_filters}[v]"
         )
         cmd = [
             FFMPEG_EXE, "-y", "-i", bg_path,
