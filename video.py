@@ -32,15 +32,21 @@ def generate_voiceover(text: str) -> str | None:
         print(f"TTS error: {e}")
         return None
 MEDIA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "media")
+# Seul ce sous-dossier contient des vidéos/images de fond — évite d'utiliser avatar/logo
+BG_DIR = os.path.join(MEDIA_DIR, "backgrounds")
+# Noms à exclure explicitement
+EXCLUDED_FILES = {"avatar.jpg", "avatar_round.png", "avatar_card.png",
+                  "logo.png", "logo_alt.png", "background_music.mp3", "README.txt"}
 
 
 def pick_local_media(keyword: str) -> str | None:
-    """Cherche dans media/ un fichier contenant le keyword, sinon prend un aléatoire."""
-    if not os.path.isdir(MEDIA_DIR):
-        return None
+    """Cherche uniquement dans media/backgrounds/ des vidéos de fond."""
+    search_dir = BG_DIR if os.path.isdir(BG_DIR) else MEDIA_DIR
     all_media = []
-    for ext in ("*.mp4", "*.mov", "*.jpg", "*.jpeg", "*.png"):
-        all_media.extend(glob.glob(os.path.join(MEDIA_DIR, ext)))
+    for ext in ("*.mp4", "*.mov"):  # Vidéos uniquement — pas d'images statiques
+        all_media.extend(glob.glob(os.path.join(search_dir, ext)))
+    # Exclure les fichiers systèmes
+    all_media = [f for f in all_media if os.path.basename(f) not in EXCLUDED_FILES]
     if not all_media:
         return None
     matches = [f for f in all_media if keyword.lower() in os.path.basename(f).lower()]
@@ -157,9 +163,11 @@ def create_reel(caption: str, accroche: str, hashtags: str, keyword: str) -> tup
             "-pix_fmt", "yuv420p", output,
         ]
     else:
-        # Aucun média — fond dégradé noir/rouge
+        # Aucun média — fond animé avec effet de pulsation (cercles qui s'expandent)
         filters = (
-            f"color=c=0x1a0000:size=1080x1920:duration=15,"
+            f"color=c=0x0a0a0a:size=1080x1920:duration=15,format=yuv420p,"
+            f"geq=r='if(lt(mod(hypot(X-W/2\\,Y-H/2)-t*60\\,120)\\,20)\\,200\\,10)':"
+            f"g='10':b='if(lt(mod(hypot(X-W/2\\,Y-H/2)-t*60\\,120)\\,20)\\,10\\,10)',"
             f"drawtext=fontsize=65:fontcolor=white:x=(w-text_w)/2:y=h*0.35:"
             f"text='{main_esc}':line_spacing=10:shadowcolor=#ff3300:shadowx=4:shadowy=4,"
             f"drawtext=fontsize=40:fontcolor=#ffcccc:x=(w-text_w)/2:y=h*0.62:"
