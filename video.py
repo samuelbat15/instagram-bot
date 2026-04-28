@@ -1,3 +1,4 @@
+import asyncio
 import glob
 import os
 import random
@@ -10,6 +11,24 @@ import imageio_ffmpeg
 
 FFMPEG_EXE = imageio_ffmpeg.get_ffmpeg_exe()
 PEXELS_KEY = os.environ.get("PEXELS_API_KEY", "")
+VOICE = os.environ.get("TTS_VOICE", "fr-FR-DeniseNeural")
+
+
+async def _generate_tts(text: str, output_path: str) -> None:
+    import edge_tts
+    tts = edge_tts.Communicate(text, VOICE)
+    await tts.save(output_path)
+
+
+def generate_voiceover(text: str) -> str | None:
+    """Génère un fichier MP3 de voix off et retourne son chemin."""
+    try:
+        audio_path = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False).name
+        asyncio.run(_generate_tts(text, audio_path))
+        return audio_path
+    except Exception as e:
+        print(f"TTS error: {e}")
+        return None
 MEDIA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "media")
 
 
@@ -148,5 +167,29 @@ def create_reel(caption: str, accroche: str, hashtags: str, keyword: str) -> tup
 
     if delete_bg and bg_path and os.path.exists(bg_path):
         os.unlink(bg_path)
+
+    # Générer et mixer la voix off
+    voix_text = f"{accroche}. {caption[:100]}"
+    audio_path = generate_voiceover(voix_text)
+    if audio_path and os.path.exists(audio_path):
+        final = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False).name
+        mix_cmd = [
+            FFMPEG_EXE, "-y",
+            "-i", output,
+            "-i", audio_path,
+            "-map", "0:v",
+            "-map", "1:a",
+            "-c:v", "copy",
+            "-c:a", "aac",
+            "-shortest",
+            final,
+        ]
+        mix_result = subprocess.run(mix_cmd, capture_output=True, text=True)
+        os.unlink(output)
+        os.unlink(audio_path)
+        if mix_result.returncode == 0:
+            return final, source
+        # Si merge échoue, retourner la vidéo sans son
+        return final if os.path.exists(final) else output, source
 
     return output, source
