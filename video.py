@@ -11,7 +11,9 @@ import imageio_ffmpeg
 
 FFMPEG_EXE = imageio_ffmpeg.get_ffmpeg_exe()
 PEXELS_KEY = os.environ.get("PEXELS_API_KEY", "")
-VOICE = os.environ.get("TTS_VOICE", "fr-FR-DeniseNeural")
+VOICE = os.environ.get("TTS_VOICE", "fr-FR-HenriNeural")  # Voix masculine dynamique pour le sport
+MUSIC_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "media", "background_music.mp3")
+LOGO_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "media", "logo.png")
 
 
 async def _generate_tts(text: str, output_path: str) -> None:
@@ -168,28 +170,75 @@ def create_reel(caption: str, accroche: str, hashtags: str, keyword: str) -> tup
     if delete_bg and bg_path and os.path.exists(bg_path):
         os.unlink(bg_path)
 
-    # Générer et mixer la voix off
-    voix_text = f"{accroche}. {caption[:100]}"
+    # 1. Voix off (Henri Neural — voix masculine dynamique)
+    voix_text = f"{accroche}. {caption[:120]}"
     audio_path = generate_voiceover(voix_text)
-    if audio_path and os.path.exists(audio_path):
-        final = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False).name
-        mix_cmd = [
+
+    # 2. Mixer voix + musique de fond avec ducking automatique
+    final = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False).name
+    has_voice = audio_path and os.path.exists(audio_path)
+    has_music = os.path.exists(MUSIC_PATH)
+
+    if has_voice and has_music:
+        # Voix en premier plan + musique à -18dB en fond (ducking)
+        audio_cmd = [
             FFMPEG_EXE, "-y",
             "-i", output,
             "-i", audio_path,
-            "-map", "0:v",
-            "-map", "1:a",
-            "-c:v", "copy",
-            "-c:a", "aac",
-            "-shortest",
-            final,
+            "-i", MUSIC_PATH,
+            "-filter_complex",
+            "[2:a]volume=0.12,atrim=duration=15[music];"
+            "[1:a][music]amix=inputs=2:duration=first:weights=1 0.15[audio]",
+            "-map", "0:v", "-map", "[audio]",
+            "-c:v", "copy", "-c:a", "aac", "-shortest", final,
         ]
-        mix_result = subprocess.run(mix_cmd, capture_output=True, text=True)
-        os.unlink(output)
-        os.unlink(audio_path)
-        if mix_result.returncode == 0:
-            return final, source
-        # Si merge échoue, retourner la vidéo sans son
-        return final if os.path.exists(final) else output, source
+    elif has_voice:
+        audio_cmd = [
+            FFMPEG_EXE, "-y",
+            "-i", output, "-i", audio_path,
+            "-map", "0:v", "-map", "1:a",
+            "-c:v", "copy", "-c:a", "aac", "-shortest", final,
+        ]
+    elif has_music:
+        audio_cmd = [
+            FFMPEG_EXE, "-y",
+            "-i", output, "-i", MUSIC_PATH,
+            "-filter_complex", "[1:a]volume=0.18,atrim=duration=15[a]",
+            "-map", "0:v", "-map", "[a]",
+            "-c:v", "copy", "-c:a", "aac", "-shortest", final,
+        ]
+    else:
+        audio_cmd = None
 
-    return output, source
+    if audio_cmd:
+        r = subprocess.run(audio_cmd, capture_output=True, text=True)
+        if r.returncode != 0:
+            final = output  # fallback silencieux
+    else:
+        final = output
+
+    # 3. Watermark logo si disponible
+    if os.path.exists(LOGO_PATH) and final != output:
+        watermarked = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False).name
+        wm_cmd = [
+            FFMPEG_EXE, "-y",
+            "-i", final, "-i", LOGO_PATH,
+            "-filter_complex",
+            "[1:v]scale=200:-1,format=rgba,colorchannelmixer=aa=0.7[logo];"
+            "[0:v][logo]overlay=W-w-30:H-h-80[v]",
+            "-map", "[v]", "-map", "0:a?",
+            "-c:v", "libx264", "-c:a", "copy", "-pix_fmt", "yuv420p", watermarked,
+        ]
+        wr = subprocess.run(wm_cmd, capture_output=True, text=True)
+        if wr.returncode == 0:
+            if final != output:
+                os.unlink(final)
+            final = watermarked
+
+    # Nettoyage
+    if audio_path and os.path.exists(audio_path):
+        os.unlink(audio_path)
+    if delete_bg and bg_path and os.path.exists(bg_path):
+        os.unlink(bg_path)
+
+    return final, source

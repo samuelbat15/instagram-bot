@@ -175,7 +175,7 @@ def main():
 
                 # Générer la vidéo si FFmpeg dispo
                 if FFMPEG_AVAILABLE:
-                    send_message(chat_id, "🎬 Création du Reel...")
+                    send_message(chat_id, "🎬 Création du Reel avec voix off + musique...")
                     try:
                         from video import create_reel
                         video_path, source = create_reel(
@@ -185,17 +185,29 @@ def main():
                             data["keyword_video"],
                         )
                         source_label = {
-                            "local": "📁 Média local utilisé",
-                            "pexels": "🌐 Vidéo Pexels utilisée",
-                            "gradient": "🎨 Fond généré (ajoutez des médias dans media/)",
+                            "local": "📁 Média local",
+                            "pexels": "🌐 Pexels",
+                            "gradient": "🎨 Fond généré",
                         }.get(source, "")
                         send_video(chat_id, video_path,
                                    caption=f"{data['accroche']}\n\n{data['hashtags'][:200]}")
-                        send_message(chat_id, source_label)
+
+                        # Auto-post Instagram si configuré
+                        from instagram import post_reel, INSTAGRAM_USER
+                        if INSTAGRAM_USER:
+                            send_message(chat_id, "📲 Publication sur Instagram en cours...")
+                            url = post_reel(video_path, data["caption"], data["hashtags"])
+                            if url:
+                                send_message(chat_id, f"✅ Publié sur Instagram !\n{url}")
+                            else:
+                                send_message(chat_id, "⚠️ Publication Instagram échouée — vérifier les identifiants")
+                        else:
+                            send_message(chat_id, f"{source_label}\n💡 Configure INSTAGRAM_USER + INSTAGRAM_PASS pour auto-publier")
+
                         os.unlink(video_path)
                         print(f"Vidéo envoyée — source: {source}")
                     except Exception as e:
-                        send_message(chat_id, f"⚠️ Vidéo indisponible : {str(e)[:100]}")
+                        send_message(chat_id, f"⚠️ Erreur vidéo : {str(e)[:150]}")
                 else:
                     send_message(chat_id, "ℹ️ Vidéo désactivée — FFmpeg non installé")
 
