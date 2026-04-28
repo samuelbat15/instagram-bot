@@ -109,11 +109,20 @@ def create_reel(caption: str, accroche: str, hashtags: str, keyword: str) -> tup
 
     output = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False).name
 
-    def esc(s):
-        return s.replace("'", "\\'").replace(":", "\\:").replace("%", "\\%")
+    def clean(s):
+        """Supprime emojis, retours à la ligne et caractères spéciaux pour FFmpeg drawtext."""
+        import re
+        # Supprimer emojis et caractères non-ASCII
+        s = s.encode("ascii", errors="ignore").decode("ascii")
+        # Remplacer retours à la ligne par espace
+        s = s.replace("\n", " ").replace("\r", " ")
+        # Échapper pour FFmpeg
+        s = s.replace("'", "\\'").replace(":", "\\:").replace("%", "\\%").replace("\\n", " ")
+        # Limiter la longueur
+        return s[:80]
 
-    main_esc = esc(wrap_text(accroche))
-    sub_esc = esc(wrap_text(caption[:120]))
+    main_esc = clean(wrap_text(accroche))
+    sub_esc = clean(caption[:100])
 
     text_filters = (
         f"drawtext=fontsize=60:fontcolor=white:x=(w-text_w)/2:y=h*0.35:"
