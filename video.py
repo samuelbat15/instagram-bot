@@ -98,12 +98,29 @@ def create_reel(caption: str, accroche: str, hashtags: str, keyword: str) -> tup
     Crée un Reel Instagram MP4 de 15 secondes.
     Retourne (chemin_fichier, source) — source = "local" | "pexels" | "gradient".
     """
-    # Média local en priorité, Pexels en fallback
-    local_path = pick_local_media(keyword)
-    if local_path:
-        bg_path = local_path
-        source = "local"
-        delete_bg = False
+    # Priorité : Sora AI → Pexels → gradient
+    OPENAI_KEY = os.environ.get("OPENAI_API_KEY", "")
+    if OPENAI_KEY:
+        try:
+            from sora import generate_sora_video
+            sora_prompt = (
+                f"Cinematic vertical boxing gym video, 9:16 format. "
+                f"{keyword} training session, dynamic movement, professional athlete, "
+                f"Brest France boxing club atmosphere, motivational energy. "
+                f"No text overlay. High quality."
+            )
+            sora_path = generate_sora_video(sora_prompt, duration=15)
+            if sora_path:
+                bg_path = sora_path
+                source = "sora"
+                delete_bg = True
+            else:
+                raise Exception("Sora returned None")
+        except Exception as e:
+            print(f"Sora fallback to Pexels: {e}")
+            bg_path = search_video(keyword) if PEXELS_KEY else None
+            source = "pexels" if bg_path else "gradient"
+            delete_bg = bool(bg_path)
     elif PEXELS_KEY:
         bg_path = search_video(keyword)
         source = "pexels" if bg_path else "gradient"
