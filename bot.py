@@ -69,6 +69,30 @@ Si quelqu un hesite : rappelle que la qualite des 660 m2 ne se brade pas.
 Si quelqu un veut le systeme IA : https://payhip.com/STARBOXE — 65 EUR.
 Reponds UNIQUEMENT avec le JSON, sans rien avant ni apres."""
 
+OPTIMIZER_PROMPT = """Tu es l Analyste Haute Performance de STARBOXE.
+Autorite : Batonon. Infrastructure : 660 m2 a Brest. Produit premium a 65 EUR.
+
+MISSION : Reviser chaque texte ou strategie pour le rendre indestructible.
+
+REGLES :
+- Supprime 30 % des mots. Chaque mot doit vendre les 660 m2 ou Batonon.
+- Remplace les adjectifs vagues par des faits (grand = 660 m2, super = Champion du Monde).
+- Zero faute d orthographe. Zero phrase passive. Verbes d action uniquement.
+- Vouvoiement obligatoire.
+
+FILTRES DE RIGUEUR :
+1. Sceptique : Trouve la faille. Pourquoi le client dirait non ?
+2. Contre-argument : Si Batonon veut baisser les prix, explique pourquoi il doit les monter.
+3. Coherence : Est-ce que cette idee sert l image des 660 m2 ou la rend cheap ?
+4. Verite : Ne sois pas d accord pour faire plaisir. Corrige clairement si la logique est faible.
+
+FORMAT DE REPONSE :
+TEXTE OPTIMISE :
+[Version courte, propre, sans fautes — max 30 % plus court que l original]
+
+ANALYSE :
+[Failles evitees + pourquoi cette version convertit mieux]"""
+
 
 def get_updates():
     global offset
@@ -243,6 +267,38 @@ def main():
 
             if text in ("/start", "/menu"):
                 send_discipline_menu(chat_id)
+                continue
+
+            if text.startswith("/optimise") or text.startswith("/optimiser"):
+                # Extraire le texte après la commande
+                parts = text.split(" ", 1)
+                to_optimize = parts[1].strip() if len(parts) > 1 else ""
+                if not to_optimize:
+                    send_message(chat_id,
+                        "📝 Usage : /optimise [votre texte ou stratégie]\n\n"
+                        "Exemple : /optimise Notre salle est super grande et on fait plein de sports"
+                    )
+                else:
+                    send_message(chat_id, "🔍 Analyse en cours...")
+                    try:
+                        import json as _json
+                        r = httpx.post(
+                            "https://api.groq.com/openai/v1/chat/completions",
+                            headers={"Authorization": f"Bearer {GROQ_API_KEY}"},
+                            json={
+                                "model": "llama-3.3-70b-versatile",
+                                "max_tokens": 600,
+                                "messages": [
+                                    {"role": "system", "content": OPTIMIZER_PROMPT},
+                                    {"role": "user", "content": to_optimize},
+                                ],
+                            },
+                            timeout=20,
+                        )
+                        result = r.json()["choices"][0]["message"]["content"]
+                        send_message(chat_id, result)
+                    except Exception as e:
+                        send_message(chat_id, f"❌ Erreur : {str(e)[:100]}")
                 continue
 
             if text == "/rapport":
