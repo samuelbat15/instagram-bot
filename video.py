@@ -11,22 +11,57 @@ import imageio_ffmpeg
 
 FFMPEG_EXE = imageio_ffmpeg.get_ffmpeg_exe()
 PEXELS_KEY = os.environ.get("PEXELS_API_KEY", "")
-VOICE = os.environ.get("TTS_VOICE", "fr-FR-HenriNeural")  # Voix masculine dynamique pour le sport
+ELEVENLABS_KEY = os.environ.get("ELEVENLABS_API_KEY", "")
+# Charlie — Deep, Confident, Energetic (eleven_multilingual_v2 parle français)
+ELEVENLABS_VOICE_ID = os.environ.get("ELEVENLABS_VOICE_ID", "IKne3meq5aSn9XLyUdCD")
+VOICE = os.environ.get("TTS_VOICE", "fr-FR-HenriNeural")  # fallback Edge TTS
 MUSIC_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "media", "background_music.mp3")
 LOGO_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "media", "logo.png")
 
 
-async def _generate_tts(text: str, output_path: str) -> None:
+def _generate_elevenlabs(text: str, output_path: str) -> bool:
+    """Génère une voix via ElevenLabs. Retourne True si succès."""
+    if not ELEVENLABS_KEY:
+        return False
+    try:
+        r = httpx.post(
+            f"https://api.elevenlabs.io/v1/text-to-speech/{ELEVENLABS_VOICE_ID}",
+            headers={"xi-api-key": ELEVENLABS_KEY, "Content-Type": "application/json"},
+            json={
+                "text": text,
+                "model_id": "eleven_multilingual_v2",
+                "voice_settings": {"stability": 0.5, "similarity_boost": 0.8, "style": 0.4},
+            },
+            timeout=30,
+        )
+        if r.status_code == 200:
+            with open(output_path, "wb") as f:
+                f.write(r.content)
+            return True
+        print(f"ElevenLabs error {r.status_code}: {r.text[:100]}")
+        return False
+    except Exception as e:
+        print(f"ElevenLabs exception: {e}")
+        return False
+
+
+async def _generate_edge_tts(text: str, output_path: str) -> None:
     import edge_tts
     tts = edge_tts.Communicate(text, VOICE)
     await tts.save(output_path)
 
 
 def generate_voiceover(text: str) -> str | None:
-    """Génère un fichier MP3 de voix off et retourne son chemin."""
+    """Génère voix off — ElevenLabs en priorité, Edge TTS en fallback."""
+    audio_path = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False).name
+    # Essayer ElevenLabs d'abord
+    if ELEVENLABS_KEY and _generate_elevenlabs(text, audio_path):
+        print("Voix: ElevenLabs (Charlie multilingual)")
+        return audio_path
+    # Fallback Edge TTS
     try:
-        audio_path = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False).name
-        asyncio.run(_generate_tts(text, audio_path))
+        asyncio.run(_generate_edge_tts(text, audio_path))
+        print("Voix: Edge TTS (fallback)")
         return audio_path
     except Exception as e:
         print(f"TTS error: {e}")
