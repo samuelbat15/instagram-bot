@@ -175,9 +175,12 @@ def create_reel(caption: str, accroche: str, hashtags: str, keyword: str) -> tup
         # Remplacer retours à la ligne par espace
         s = s.replace("\n", " ").replace("\r", " ")
         # Échapper pour FFmpeg
-        s = s.replace("'", "\\'").replace(":", "\\:").replace("%", "\\%").replace("\\n", " ")
-        # Limiter la longueur
-        return s[:80]
+        # Supprimer les caractères qui cassent FFmpeg drawtext (apostrophes, guillemets, deux-points)
+        for c in ("'", '"', '\\', ':', '%', '`', '(', ')'):
+            s = s.replace(c, " ")
+        # Limiter la longueur + nettoyer espaces multiples
+        s = " ".join(s.split())
+        return s[:75]
 
     main_esc = clean(wrap_text(accroche))
     sub_esc = clean(caption[:100])
