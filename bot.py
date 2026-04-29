@@ -314,7 +314,14 @@ def main():
                         except Exception:
                             pass
 
-                        os.unlink(video_path)
+                        # Suppression sécurisée (Windows peut verrouiller le fichier brièvement)
+                        import time as _time
+                        for _attempt in range(5):
+                            try:
+                                os.unlink(video_path)
+                                break
+                            except OSError:
+                                _time.sleep(0.5)
                         print(f"Vidéo envoyée — source: {source}")
                     except Exception as e:
                         send_message(chat_id, f"⚠️ Erreur vidéo : {str(e)[:150]}")
