@@ -1,0 +1,9 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+analytics.db
+.instagram_session.json
+.env.txt
+.env1.txt
+media/background_music.mp3

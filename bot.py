@@ -2,6 +2,9 @@ import os
 import sys
 import time
 import httpx
+from dotenv import load_dotenv
+
+load_dotenv()
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
