@@ -139,10 +139,13 @@ def create_reel(caption: str, accroche: str, hashtags: str, keyword: str) -> tup
         try:
             from sora import generate_sora_video
             sora_prompt = (
-                f"Cinematic vertical boxing gym video, 9:16 format. "
-                f"{keyword} training session, dynamic movement, professional athlete, "
-                f"Brest France boxing club atmosphere, motivational energy. "
-                f"No text overlay. High quality."
+                f"Ultra-cinematic 9:16 vertical video for Instagram Reels. "
+                f"STARBOXE elite boxing gym, 660 square meters, Brest France. "
+                f"Subject: {keyword}. "
+                f"Style: slow-motion + fast cuts, dramatic lighting, shadows and sweat, "
+                f"professional athlete in motion, ring and heavy bags visible. "
+                f"Color grading: dark, high contrast, red accents. "
+                f"NO text. NO logo. NO watermark. Photorealistic. 4K quality."
             )
             sora_path = generate_sora_video(sora_prompt, duration=15)
             if sora_path:
@@ -182,14 +185,17 @@ def create_reel(caption: str, accroche: str, hashtags: str, keyword: str) -> tup
         s = " ".join(s.split())
         return s[:75]
 
-    main_esc = clean(wrap_text(accroche))
-    sub_esc = clean(caption[:100])
+    main_esc = clean(accroche)
+    sub_esc = clean(caption[:90])
 
+    # Overlay semi-transparent noir en bas pour lisibilité du texte
     text_filters = (
-        f"drawtext=fontsize=60:fontcolor=white:x=(w-text_w)/2:y=h*0.35:"
-        f"text='{main_esc}':line_spacing=10:shadowcolor=black:shadowx=3:shadowy=3,"
-        f"drawtext=fontsize=38:fontcolor=white:x=(w-text_w)/2:y=h*0.62:"
-        f"text='{sub_esc}':line_spacing=8:shadowcolor=black:shadowx=2:shadowy=2"
+        # Accroche — grand, centré, blanc avec ombre noire
+        f"drawtext=fontsize=72:fontcolor=white:x=(w-text_w)/2:y=h*0.30:"
+        f"text='{main_esc}':shadowcolor=black:shadowx=4:shadowy=4,"
+        # Sous-texte — plus petit, centré, blanc
+        f"drawtext=fontsize=40:fontcolor=white:x=(w-text_w)/2:y=h*0.82:"
+        f"text='{sub_esc}':shadowcolor=black:shadowx=2:shadowy=2"
     )
 
     if bg_path and is_image(bg_path):

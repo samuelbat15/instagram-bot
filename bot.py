@@ -158,11 +158,26 @@ def send_discipline_menu(chat_id):
             ],
         ]
     }
+    menu_text = (
+        "⭐ *AIELLO — IA STARBOXE 660 m²*\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "🎬 *GÉNÉRER UN REEL* — Tap une discipline ci-dessous\n"
+        "Vidéo 15s : Sora AI + voix ElevenLabs + avatar Aiello\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "📋 *COMMANDES TEXTE :*\n\n"
+        "/optimise `[texte]` — Optimiser un texte ou stratégie\n"
+        "_Ex: /optimise Notre salle est grande_\n\n"
+        "/rapport — Statistiques de la semaine\n\n"
+        "/start — Afficher ce menu\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "💡 *OU TAPE LIBREMENT* n importe quelle idée\n"
+        "_Ex: Script vidéo 660 m2 pour Instagram_"
+    )
     httpx.post(
         f"{TELEGRAM_API}/sendMessage",
         json={
             "chat_id": chat_id,
-            "text": "🥊 *Star Boxe Coaching — Bot Marketing*\n\nChoisis une discipline pour générer un Reel :",
+            "text": menu_text,
             "parse_mode": "Markdown",
             "reply_markup": keyboard,
         },
