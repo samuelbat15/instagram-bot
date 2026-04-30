@@ -106,19 +106,28 @@ def get_updates():
 def send_message(chat_id, text):
     chunks = [text[i:i+4000] for i in range(0, len(text), 4000)]
     for chunk in chunks:
-        httpx.post(f"{TELEGRAM_API}/sendMessage",
-                   json={"chat_id": chat_id, "text": chunk})
+        try:
+            r = httpx.post(f"{TELEGRAM_API}/sendMessage",
+                           json={"chat_id": chat_id, "text": chunk}, timeout=10)
+            r.raise_for_status()
+        except Exception as e:
+            print(f"send_message error: {e}")
         time.sleep(0.3)
 
 
 def send_video(chat_id, video_path, caption=""):
-    with open(video_path, "rb") as f:
-        httpx.post(
-            f"{TELEGRAM_API}/sendVideo",
-            data={"chat_id": str(chat_id), "caption": caption[:1000]},
-            files={"video": f},
-            timeout=60,
-        )
+    try:
+        with open(video_path, "rb") as f:
+            r = httpx.post(
+                f"{TELEGRAM_API}/sendVideo",
+                data={"chat_id": str(chat_id), "caption": caption[:1000]},
+                files={"video": f},
+                timeout=90,
+            )
+            r.raise_for_status()
+    except Exception as e:
+        print(f"send_video error: {e}")
+        send_message(chat_id, "⚠️ Envoi vidéo échoué — réessayez.")
 
 
 def send_photo(chat_id, photo_path, caption=""):
@@ -205,10 +214,12 @@ def generate_content(text):
         timeout=20,
     )
     content = r.json()["choices"][0]["message"]["content"]
-    # Extraire le JSON
-    start = content.find("{")
-    end = content.rfind("}") + 1
-    return json.loads(content[start:end])
+    # Extraire le JSON de façon robuste
+    import re as _re
+    match = _re.search(r'\{.*\}', content, _re.DOTALL)
+    if not match:
+        raise ValueError(f"Pas de JSON dans la réponse: {content[:100]}")
+    return json.loads(match.group())
 
 
 def format_post(data):
@@ -384,14 +395,14 @@ def main():
                         except Exception:
                             pass
 
-                        # Suppression sécurisée (Windows peut verrouiller le fichier brièvement)
+                        # Suppression robuste cross-platform
+                        from pathlib import Path as _Path
                         import time as _time
-                        for _attempt in range(5):
-                            try:
-                                os.unlink(video_path)
-                                break
-                            except OSError:
-                                _time.sleep(0.5)
+                        _time.sleep(1)
+                        try:
+                            _Path(video_path).unlink(missing_ok=True)
+                        except OSError:
+                            pass
                         print(f"Vidéo envoyée — source: {source}")
                     except Exception as e:
                         send_message(chat_id, f"⚠️ Erreur vidéo : {str(e)[:150]}")

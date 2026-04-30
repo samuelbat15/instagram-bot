@@ -241,7 +241,10 @@ def create_reel(caption: str, accroche: str, hashtags: str, keyword: str) -> tup
             "-pix_fmt", "yuv420p", output,
         ]
 
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+    except subprocess.TimeoutExpired:
+        raise RuntimeError("FFmpeg timeout (120s) — vérifiez les médias sources")
     if result.returncode != 0:
         raise RuntimeError(f"FFmpeg error: {result.stderr[-500:]}")
 

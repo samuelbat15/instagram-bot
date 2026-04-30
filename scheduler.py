@@ -86,8 +86,15 @@ def auto_post():
 def start_scheduler():
     """Demarre le scheduler en background thread."""
     scheduler = BackgroundScheduler(timezone="Europe/Paris")
-    # Lundi, Mercredi, Vendredi a 18h00
-    scheduler.add_job(auto_post, CronTrigger(day_of_week="mon,wed,fri", hour=18, minute=0))
+    # Lundi, Mercredi, Vendredi a 18h00 — misfire_grace_time=600s pour rattraper si PC dormait
+    scheduler.add_job(
+        auto_post,
+        CronTrigger(day_of_week="mon,wed,fri", hour=18, minute=0),
+        misfire_grace_time=600,
+        max_instances=1,
+        id="auto_post_18h",
+        replace_existing=True,
+    )
     scheduler.start()
     print("[Scheduler] Actif — posts automatiques lun/mer/ven 18h00 (heure Paris)")
     return scheduler
